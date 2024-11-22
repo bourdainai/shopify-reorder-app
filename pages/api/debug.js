@@ -1,5 +1,4 @@
 // @ts-check
-import { withApiAuthRequired } from '@shopify/shopify-auth';
 
 // This endpoint does not require authentication
 export default async function handler(req, res) {
