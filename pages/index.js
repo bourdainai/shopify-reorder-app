@@ -8,14 +8,11 @@ import {
   Banner,
   Layout,
 } from '@shopify/polaris';
-import { useAppBridge } from '@shopify/app-bridge-react';
-import { getSessionToken } from "@shopify/app-bridge-utils";
 
-function Index() {
+export default function Index() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const app = useAppBridge();
 
   useEffect(() => {
     fetchOrders();
@@ -23,14 +20,9 @@ function Index() {
 
   const fetchOrders = async () => {
     try {
-      const token = await getSessionToken(app);
-      const response = await fetch('/api/orders', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch('/api/orders');
       const data = await response.json();
-      setOrders(data.orders);
+      setOrders(data.orders || []);
       setLoading(false);
     } catch (err) {
       setError('Failed to load orders');
@@ -40,12 +32,10 @@ function Index() {
 
   const handleReorder = async (orderId) => {
     try {
-      const token = await getSessionToken(app);
       const response = await fetch('/api/reorder', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ orderId }),
       });
@@ -106,5 +96,3 @@ function Index() {
     </Page>
   );
 }
-
-export default Index;
