@@ -2,11 +2,12 @@
   "name": "shopify-reorder-app",
   "version": "1.0.0",
   "description": "A Shopify app that allows customers to repeat their previous orders",
-  "main": "index.js",
+  "main": "server/index.js",
   "scripts": {
-    "dev": "nodemon server/index.js",
+    "dev": "next dev",
     "build": "next build",
-    "start": "NODE_ENV=production node server/index.js"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "@shopify/app-bridge-react": "^3.7.9",
@@ -20,6 +21,8 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "eslint": "^8.40.0",
+    "eslint-config-next": "^13.4.2"
   }
 }
