@@ -1,16 +1,29 @@
-export default function handler(req, res) {
-  // Disable caching
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+export default async function handler(req, res) {
+  console.log('Starting env-check endpoint');
   
-  const envInfo = {
-    SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? `${process.env.SHOPIFY_API_KEY.substring(0, 6)}...` : 'not set',
-    HOST: process.env.HOST || 'not set',
-    SCOPES: process.env.SCOPES || 'not set',
-    NODE_ENV: process.env.NODE_ENV || 'not set',
-    VERCEL_ENV: process.env.VERCEL_ENV || 'not set'
-  };
+  try {
+    // Basic environment check without any processing
+    const envInfo = {
+      API_KEY_SET: process.env.SHOPIFY_API_KEY ? 'yes' : 'no',
+      HOST_SET: process.env.HOST ? 'yes' : 'no',
+      SCOPES_SET: process.env.SCOPES ? 'yes' : 'no',
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+      VERCEL_ENV: process.env.VERCEL_ENV || 'not set'
+    };
 
-  res.status(200).json(envInfo);
+    console.log('Environment info:', envInfo);
+    
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    
+    return res.status(200).json(envInfo);
+  } catch (error) {
+    console.error('Error in env-check endpoint:', error);
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
 }
