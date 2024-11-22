@@ -3,13 +3,11 @@ import { NextResponse } from 'next/server';
 export function middleware(request) {
   const url = request.nextUrl;
   
-  // Allow access to environment check pages without authentication
-  if (url.pathname === '/check' || url.pathname === '/env-check' || url.pathname === '/api/env-check') {
-    return NextResponse.next();
-  }
-
-  // Allow access to auth endpoints without shop parameter
-  if (url.pathname.startsWith('/api/auth')) {
+  // Skip middleware entirely for these paths
+  if (url.pathname === '/check' || 
+      url.pathname === '/env-check' || 
+      url.pathname === '/api/env-check' ||
+      url.pathname.startsWith('/api/auth')) {
     return NextResponse.next();
   }
 
@@ -29,15 +27,7 @@ export function middleware(request) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all paths except for:
-     * 1. /api/auth/* (auth routes)
-     * 2. /api/webhooks/* (webhook routes)
-     * 3. /_next/* (Next.js internals)
-     * 4. /static/* (static files)
-     * 5. /*.{png,jpg,gif} (static images)
-     * 6. /favicon.ico (favicon)
-     */
-    '/((?!api/auth|api/webhooks|_next/static|static|.*\\..*|favicon.ico).*)',
+    // Match all request paths except for the ones specified
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
