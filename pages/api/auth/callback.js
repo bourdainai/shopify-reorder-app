@@ -1,17 +1,31 @@
 import { Shopify } from '@shopify/shopify-api';
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
   try {
+    // Validate callback
     const session = await Shopify.Auth.validateAuthCallback(
       req,
       res,
       req.query
     );
 
-    // Session is now persisted
-    res.redirect(`/`); // Redirect to the app home page
+    // Store session token or handle session management here
+    console.log('Auth successful, session created:', session.id);
+
+    // Redirect to app home with shop parameter
+    const redirectUrl = `/?shop=${session.shop}&host=${req.query.host}`;
+    return res.redirect(redirectUrl);
   } catch (error) {
-    console.error('Error during auth callback:', error);
-    res.status(500).send('Error during auth callback');
+    console.error('Auth callback error:', error);
+    return res.status(500).json({ 
+      message: 'Error during auth callback',
+      error: error.message 
+    });
   }
 }

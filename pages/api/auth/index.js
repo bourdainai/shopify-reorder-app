@@ -1,23 +1,35 @@
 import { Shopify } from '@shopify/shopify-api';
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
-  if (!req.query.shop) {
-    res.status(400).send("Missing shop parameter");
-    return;
+  if (req.method !== 'GET') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  const shop = req.query.shop;
+  if (!shop) {
+    return res.status(400).json({ message: 'Missing shop parameter' });
   }
 
   try {
-    const authRoute = await Shopify.Auth.beginAuth(
+    // Initialize the auth URL
+    const authUrl = await Shopify.Auth.beginAuth(
       req,
       res,
-      req.query.shop,
+      shop,
       '/api/auth/callback',
       false
     );
 
-    res.redirect(authRoute);
+    // Redirect to auth
+    return res.redirect(authUrl);
   } catch (error) {
-    console.error('Error during auth:', error);
-    res.status(500).send('Error during auth');
+    console.error('Auth error:', error);
+    return res.status(500).json({ message: 'Error initiating auth', error: error.message });
   }
 }
