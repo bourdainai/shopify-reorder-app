@@ -1,38 +1,27 @@
 import '@shopify/shopify-api/adapters/node';
 import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 
-// Initialize Shopify client outside the handler
-const shopify = shopifyApi({
-  apiKey: process.env.SHOPIFY_API_KEY,
-  apiSecretKey: process.env.SHOPIFY_API_SECRET,
-  scopes: process.env.SCOPES?.split(',') || ['read_orders', 'write_orders'],
-  hostName: process.env.HOST?.replace(/https?:\/\//, '') || 'shopify-reorder-app.vercel.app',
-  hostScheme: 'https',
-  isEmbeddedApp: true,
-  apiVersion: LATEST_API_VERSION,
-});
-
 export const config = {
-  api: {
-    bodyParser: false,
-    externalResolver: true,
-  },
+  runtime: 'edge',
+  regions: ['lhr1'], // London region for lower latency
 };
 
-export default async function handler(req, res) {
+export default async function handler(req) {
   try {
-    // Set a timeout for the callback process
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Callback timeout')), 9000)
-    );
-
-    const callbackPromise = shopify.auth.callback({
-      rawRequest: req,
-      rawResponse: res,
+    const shopify = shopifyApi({
+      apiKey: process.env.SHOPIFY_API_KEY,
+      apiSecretKey: process.env.SHOPIFY_API_SECRET,
+      scopes: process.env.SCOPES?.split(',') || ['read_orders', 'write_orders'],
+      hostName: process.env.HOST?.replace(/https?:\/\//, '') || 'shopify-reorder-app.vercel.app',
+      hostScheme: 'https',
+      isEmbeddedApp: true,
+      apiVersion: LATEST_API_VERSION,
     });
 
-    // Race between callback and timeout
-    const callbackResponse = await Promise.race([callbackPromise, timeoutPromise]);
+    // Handle the callback
+    const callbackResponse = await shopify.auth.callback({
+      rawRequest: req,
+    });
 
     // Log successful authentication
     console.log('Auth successful, session created:', {
@@ -41,22 +30,20 @@ export default async function handler(req, res) {
       scope: callbackResponse.session.scope,
     });
 
+    const url = new URL(req.url);
+    const host = url.searchParams.get('host');
+
     // Redirect to app with shop parameter
-    const redirectUrl = `/api/auth/toplevel?shop=${callbackResponse.session.shop}&host=${req.query.host}`;
-    return res.redirect(redirectUrl);
+    const redirectUrl = `/api/auth/toplevel?shop=${callbackResponse.session.shop}&host=${host}`;
+    return Response.redirect(redirectUrl, 302);
   } catch (error) {
     console.error('Auth callback error:', error);
-    
-    if (error.message === 'Callback timeout') {
-      return res.status(504).json({ 
-        message: 'Authentication callback timed out',
-        error: error.message 
-      });
-    }
-    
-    return res.status(500).json({ 
+    return new Response(JSON.stringify({ 
       message: 'Error during auth callback',
       error: error.message,
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 }

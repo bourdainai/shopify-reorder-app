@@ -1,27 +1,39 @@
-export default function handler(req, res) {
-  const shop = req.query.shop;
-  const host = req.query.host;
+export const config = {
+  runtime: 'edge',
+  regions: ['lhr1'], // London region for lower latency
+};
+
+export default async function handler(req) {
+  const url = new URL(req.url);
+  const shop = url.searchParams.get('shop');
+  const host = url.searchParams.get('host');
 
   if (!shop || !host) {
-    res.status(400).send('Missing shop or host parameter');
-    return;
+    return new Response('Missing shop or host parameter', { status: 400 });
   }
 
-  // Render a page that will automatically redirect to the app
-  res.send(`
-    <!DOCTYPE html>
+  // Return an HTML page that will handle the redirect
+  return new Response(
+    `<!DOCTYPE html>
     <html>
       <head>
-        <script src="https://unpkg.com/@shopify/app-bridge-utils"></script>
+        <script src="https://unpkg.com/@shopify/app-bridge-utils@3.7.9/umd/index.js"></script>
         <script>
           document.addEventListener('DOMContentLoaded', function() {
+            const targetUrl = '/?shop=${shop}&host=${host}';
             if (window.top === window.self) {
-              // If the current window is the 'parent', change the URL to the app's root
-              window.location.href = '/?shop=${shop}&host=${host}';
+              // If the current window is the 'parent', change the URL by setting location.href
+              window.location.href = targetUrl;
             } else {
+              // If the current window is the 'child', use AppBridge to redirect
               const AppBridge = window['app-bridge-utils'];
-              const redirect = AppBridge.Redirect.create(window.app);
-              redirect.dispatch(AppBridge.Redirect.Action.REMOTE, '/?shop=${shop}&host=${host}');
+              const app = AppBridge.createApp({
+                apiKey: '${process.env.SHOPIFY_API_KEY}',
+                host: '${host}',
+                forceRedirect: true
+              });
+              const redirect = AppBridge.Redirect.create(app);
+              redirect.dispatch(AppBridge.Redirect.Action.REMOTE, targetUrl);
             }
           });
         </script>
@@ -29,6 +41,12 @@ export default function handler(req, res) {
       <body>
         <p>Redirecting to app...</p>
       </body>
-    </html>
-  `);
+    </html>`,
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    }
+  );
 }
