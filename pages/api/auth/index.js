@@ -1,16 +1,5 @@
-import { Shopify } from '@shopify/shopify-api';
-
-// Initialize Shopify context
-Shopify.Context.initialize({
-  API_KEY: process.env.SHOPIFY_API_KEY,
-  API_SECRET_KEY: process.env.SHOPIFY_API_SECRET,
-  SCOPES: process.env.SCOPES?.split(',') || ['read_orders', 'write_orders'],
-  HOST_NAME: process.env.HOST?.replace(/https?:\/\//, '') || 'shopify-reorder-app.vercel.app',
-  HOST_SCHEME: 'https',
-  IS_EMBEDDED_APP: true,
-  API_VERSION: '2023-07',
-  SESSION_STORAGE: new Shopify.Session.MemorySessionStorage(),
-});
+import '@shopify/shopify-api/adapters/node';
+import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 
 export const config = {
   api: {
@@ -29,32 +18,48 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Auth initialization with:', {
-      apiKey: process.env.SHOPIFY_API_KEY,
-      shop: shop,
-      host: process.env.HOST
+    // Log all environment variables for debugging
+    console.log('Environment variables:', {
+      SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY,
+      HOST: process.env.HOST,
+      SCOPES: process.env.SCOPES,
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL_ENV: process.env.VERCEL_ENV
     });
 
-    // Initialize the auth URL
-    const authUrl = await Shopify.Auth.beginAuth(
-      req,
-      res,
-      shop,
-      '/api/auth/callback',
-      false
-    );
+    // Initialize the Shopify context
+    const shopify = shopifyApi({
+      apiKey: process.env.SHOPIFY_API_KEY,
+      apiSecretKey: process.env.SHOPIFY_API_SECRET,
+      scopes: process.env.SCOPES?.split(',') || ['read_orders', 'write_orders'],
+      hostName: process.env.HOST?.replace(/https?:\/\//, '') || 'shopify-reorder-app.vercel.app',
+      hostScheme: 'https',
+      isEmbeddedApp: true,
+      apiVersion: LATEST_API_VERSION,
+    });
+
+    // Initialize auth
+    const authPath = await shopify.auth.begin({
+      shop: shop,
+      callbackPath: '/api/auth/callback',
+      isOnline: false,
+      rawRequest: req,
+      rawResponse: res,
+    });
+
+    console.log('Auth URL generated:', authPath);
 
     // Redirect to auth
-    return res.redirect(authUrl);
+    return res.redirect(authPath);
   } catch (error) {
     console.error('Auth error:', error);
     return res.status(500).json({ 
-      message: 'Error initiating auth', 
-      error: error.message,
-      env: {
-        apiKey: process.env.SHOPIFY_API_KEY,
-        host: process.env.HOST,
-        scopes: process.env.SCOPES
+      error: 'Authentication failed',
+      message: error.message,
+      details: {
+        apiKey: process.env.SHOPIFY_API_KEY ? 'Set' : 'Not set',
+        shop: shop,
+        host: process.env.HOST
       }
     });
   }
